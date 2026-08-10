@@ -1,0 +1,2 @@
+package com.cestasdamel.erp.repository; import com.cestasdamel.erp.model.Sale; import org.springframework.data.jpa.repository.*; import java.time.Instant; import java.math.BigDecimal; import java.util.*;
+public interface SaleRepository extends JpaRepository<Sale,Long>{ @EntityGraph(attributePaths="items") List<Sale> findAllByOrderBySoldAtDesc(); @Query("select coalesce(sum(s.total),0) from Sale s where s.soldAt>=:from and s.soldAt<:to") BigDecimal sumBetween(Instant from,Instant to); long countBySoldAtGreaterThanEqualAndSoldAtLessThan(Instant from,Instant to); }

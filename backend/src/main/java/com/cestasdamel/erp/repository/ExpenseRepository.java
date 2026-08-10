@@ -1,0 +1,2 @@
+package com.cestasdamel.erp.repository; import com.cestasdamel.erp.model.Expense; import org.springframework.data.jpa.repository.*; import java.time.Instant; import java.math.BigDecimal; import java.util.*;
+public interface ExpenseRepository extends JpaRepository<Expense,Long>{ List<Expense> findAllByOrderByOccurredAtDesc(); @Query("select coalesce(sum(e.amount),0) from Expense e where e.occurredAt>=:from and e.occurredAt<:to") BigDecimal sumBetween(Instant from,Instant to); }

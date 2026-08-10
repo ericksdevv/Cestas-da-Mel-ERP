@@ -1,0 +1,2 @@
+package com.cestasdamel.erp.controller; import com.cestasdamel.erp.dto.Responses.*; import com.cestasdamel.erp.service.*; import lombok.RequiredArgsConstructor; import org.springframework.web.bind.annotation.*;
+@RestController @RequiredArgsConstructor public class ReportingController {private final ReportingService service;@GetMapping("/dashboard") Dashboard dashboard(){return service.dashboard();}@GetMapping("/reports/monthly") MonthlySummary monthly(@RequestParam int year,@RequestParam int month){return service.monthly(year,month);}}

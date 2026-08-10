@@ -1,0 +1,2 @@
+package com.cestasdamel.erp.repository; import com.cestasdamel.erp.model.Material; import org.springframework.data.jpa.repository.*; import org.springframework.data.repository.query.Param; import jakarta.persistence.LockModeType; import java.util.*;
+public interface MaterialRepository extends JpaRepository<Material,Long>{ List<Material> findAllByOrderByNameAsc(); @Lock(LockModeType.PESSIMISTIC_WRITE) @Query("select m from Material m where m.id=:id") Optional<Material> lockById(@Param("id") Long id); }
