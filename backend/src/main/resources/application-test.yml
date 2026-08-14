@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+app:
+  business-zone: America/Fortaleza
+  jwt:
+    secret: test-only-signing-key-with-more-than-thirty-two-characters
+    expiration-minutes: 60
+  cors:
+    allowed-origins: http://localhost:3000
