@@ -16,6 +16,7 @@ Sistema de gestão para estoque, materiais, produção de cestas, vendas e fluxo
 - baixa automática do estoque e aviso de item baixo ou esgotado;
 - cancelamento de venda com devolução ao estoque e estorno financeiro;
 - registro de compras, gastos, entradas e saídas manuais;
+- leitura de nota fiscal por foto com IA, conferência humana, associação ao estoque e criação opcional de categorias e itens;
 - caixa atual, indicadores diários, semanais e mensais e históricos detalhados de entrada, saída e estoque resultante;
 - gráficos semanais e mensais de entradas, saídas e resultado no caixa;
 - períodos ligados ao calendário real da empresa: o dia, a semana e o mês mudam automaticamente sem apagar o histórico anterior;
@@ -62,6 +63,8 @@ O Expo permanece no terminal principal e pode ser encerrado com `Ctrl+C`.
 ## Configuração segura
 
 Nenhuma senha real ou chave JWT fica no repositório. Use [`backend/.env.example`](backend/.env.example) apenas como referência e defina valores próprios no terminal.
+
+Para habilitar a leitura de notas, adicione `OPENROUTER_API_KEY` ao arquivo local `backend/.env.local`. A chave é enviada somente ao contêiner da API e nunca é incluída no Expo, no navegador ou no APK. O modelo gratuito padrão é `openrouter/free` e pode ser alterado com `OPENROUTER_MODEL`.
 
 No PowerShell:
 
@@ -124,3 +127,4 @@ Produtos, materiais, categorias, estoques, cestas, vendas, compras, gastos, movi
 - CORS limitado às origens configuradas;
 - sessão no cofre seguro do dispositivo e apenas durante a aba no navegador;
 - respostas internas não expõem stack trace, credenciais ou detalhes do banco.
+- chave da OpenAI mantida apenas no backend; imagens de notas não são incluídas em logs nem persistidas pelo fluxo de análise.

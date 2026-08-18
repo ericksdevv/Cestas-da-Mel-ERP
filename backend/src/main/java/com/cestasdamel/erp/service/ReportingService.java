@@ -34,11 +34,12 @@ public class ReportingService {
     private final ProductRepository products;
     private final MaterialRepository materials;
     private final FinancialTransactionRepository finance;
+    private final HistoryService history;
     private final ZoneId businessZone;
 
     public ReportingService(SaleRepository sales, PurchaseRepository purchases, ExpenseRepository expenses,
                             ProductRepository products, MaterialRepository materials,
-                            FinancialTransactionRepository finance,
+                            FinancialTransactionRepository finance, HistoryService history,
                             @Value("${app.business-zone}") String businessZone) {
         this.sales = sales;
         this.purchases = purchases;
@@ -46,6 +47,7 @@ public class ReportingService {
         this.products = products;
         this.materials = materials;
         this.finance = finance;
+        this.history = history;
         this.businessZone = ZoneId.of(businessZone);
     }
 
@@ -61,11 +63,15 @@ public class ReportingService {
         Instant month = start(monthDate), nextMonth = start(monthDate.plusMonths(1));
         var productList = products.findAllByDeletedAtIsNullOrderByNameAsc();
         var materialList = materials.findAllByDeletedAtIsNullOrderByNameAsc();
-        var recent = finance.findAllByOrderByOccurredAtDesc().stream().limit(10).map(ViewMapper::financial).toList();
+        BigDecimal expensesToday = totalOutflows(day, next);
+        BigDecimal expensesWeek = totalOutflows(week, nextWeek);
+        BigDecimal expensesMonth = totalOutflows(month, nextMonth);
+        Instant financeCutoff = history.cutoff(com.cestasdamel.erp.model.Enums.HistoryType.FINANCE);
+        var recent = finance.findAllByOrderByOccurredAtDesc().stream().filter(item -> history.visibleAfter(item, financeCutoff)).limit(10).map(ViewMapper::financial).toList();
         return new Dashboard(
             finance.balance(),
             sales.sumBetween(day, next), sales.sumBetween(week, nextWeek), sales.sumBetween(month, nextMonth),
-            expenses.sumBetween(day, next), expenses.sumBetween(week, nextWeek), expenses.sumBetween(month, nextMonth),
+            expensesToday, expensesWeek, expensesMonth,
             purchases.sumBetween(day, next), purchases.sumBetween(week, nextWeek), purchases.sumBetween(month, nextMonth),
             sales.countConfirmedBetween(day, next), sales.countConfirmedBetween(week, nextWeek), sales.countConfirmedBetween(month, nextMonth),
             productList.stream().filter(item -> ViewMapper.status(item.getQuantity(), item.getMinimumStock()) == StockStatus.LOW).count(),
@@ -74,6 +80,10 @@ public class ReportingService {
             materialList.stream().filter(item -> item.getQuantity().signum() <= 0).count(),
             recent
         );
+    }
+
+    private BigDecimal totalOutflows(Instant from, Instant to) {
+        return expenses.sumBetween(from, to).add(purchases.sumBetween(from, to));
     }
 
     @Transactional(readOnly = true)

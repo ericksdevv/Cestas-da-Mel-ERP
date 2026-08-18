@@ -14,5 +14,6 @@ public final class Enums {
     public enum StockStatus { OK, LOW, OUT_OF_STOCK }
     public enum SaleStatus { CONFIRMED, CANCELLED }
     public enum ProductionStatus { COMPLETED, CANCELLED }
+    public enum HistoryType { SALES, PURCHASES, EXPENSES, PRODUCTIONS, FINANCE, STOCK_MOVEMENTS, MATERIAL_MOVEMENTS, BASKET_MOVEMENTS }
     public enum UserRole { ADMIN }
 }

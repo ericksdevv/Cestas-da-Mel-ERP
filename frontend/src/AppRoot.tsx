@@ -1,6 +1,6 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, Text, View } from 'react-native';
+import { Animated, Pressable, Text, View } from 'react-native';
 import { useAuth } from './auth/AuthContext';
 import { CatalogScreen } from './screens/CatalogScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
@@ -9,6 +9,7 @@ import { LoginScreen } from './screens/LoginScreen';
 import { MoreScreen } from './screens/MoreScreen';
 import { SaleScreen } from './screens/SaleScreen';
 import { NeonBackground } from './components/NeonBackground';
+import { SplashScreen } from './components/SplashScreen';
 import { colors, themedStyles } from './theme/theme';
 import { useAppTheme } from './theme/ThemeContext';
 
@@ -25,8 +26,14 @@ export function AppRoot() {
   useAppTheme();
   const { token, loading } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
+  const [splashComplete, setSplashComplete] = useState(false);
 
-  if (loading) return <View style={styles.loading}><NeonBackground intense /><View style={styles.logo}><Ionicons name="gift-outline" size={31} color={colors.honeyInk} /></View><ActivityIndicator color={colors.cyan} /><Text style={styles.loadingText}>INICIALIZANDO SISTEMA</Text></View>;
+  useEffect(() => {
+    const timer = setTimeout(() => setSplashComplete(true), 1650);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading || !splashComplete) return <SplashScreen />;
   if (!token) return <LoginScreen />;
 
   return (
@@ -57,11 +64,8 @@ function NavItem({ item, active, sale, onPress }: { item: typeof tabs[number]; a
 }
 
 const styles = themedStyles((colors) => ({
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: colors.background, overflow: 'hidden' },
   content: { flex: 1 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, backgroundColor: colors.background },
-  loadingText: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 2.2 },
-  logo: { width: 68, height: 68, borderRadius: 22, borderWidth: 1, borderColor: colors.cyan, backgroundColor: colors.cyan, alignItems: 'center', justifyContent: 'center', shadowColor: colors.cyan, shadowOpacity: .55, shadowRadius: 22, shadowOffset: { width: 0, height: 0 }, elevation: 8 },
   nav: { position: 'absolute', left: 10, right: 10, bottom: 8, minHeight: 74, paddingBottom: 8, paddingHorizontal: 5, borderWidth: 1, borderColor: colors.border, borderRadius: 24, backgroundColor: colors.surfaceGlass, flexDirection: 'row', alignItems: 'flex-end', shadowColor: '#000', shadowOpacity: .45, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
   navItem: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   navLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' },

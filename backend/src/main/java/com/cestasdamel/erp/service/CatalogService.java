@@ -92,6 +92,7 @@ public class CatalogService {
             }
             product.setImageContentType(contentType);
             product.setImageData(bytes);
+            products.saveAndFlush(product);
             return ViewMapper.product(product);
         } catch (java.io.IOException exception) {
             throw new BusinessException("Não foi possível salvar a imagem");
@@ -112,6 +113,7 @@ public class CatalogService {
         Product product = inventory.lockProduct(id);
         product.setImageContentType(null);
         product.setImageData(null);
+        products.saveAndFlush(product);
     }
 
     @Transactional(readOnly = true)

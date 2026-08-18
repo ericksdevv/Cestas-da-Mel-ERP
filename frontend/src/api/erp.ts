@@ -2,10 +2,11 @@ import { request } from './client';
 import {
   AuthResponse, Basket, BasketInput, Category, CategoryInput, CategoryType, CashFlowReport, Dashboard, Expense, ExpenseInput, FinancialTransaction,
   ManualTransactionInput, Material, MaterialInput, MonthlySummary, Movement, Product, ProductInput,
-  Purchase, PurchaseInput, ReportPeriod, Sale, SaleInput, StockAlerts, RegisterInput, Production, ProductionInput,
+  Purchase, PurchaseInput, ReportPeriod, Sale, SaleInput, StockAlerts, RegisterInput, Production, ProductionInput, ReceiptAnalysis, ReceiptImportConfirmation,
 } from './types';
 
 const json = (value: unknown) => JSON.stringify(value);
+export type HistoryType = 'SALES' | 'PURCHASES' | 'EXPENSES' | 'PRODUCTIONS' | 'FINANCE' | 'STOCK_MOVEMENTS' | 'MATERIAL_MOVEMENTS' | 'BASKET_MOVEMENTS';
 
 export const erpApi = {
   health: () => request<{ status: 'UP'; database: 'UP'; timestamp: string }>('/health'),
@@ -41,6 +42,8 @@ export const erpApi = {
   createProduction: (input: ProductionInput) => request<Production>('/productions', { method: 'POST', body: json(input) }),
   purchases: () => request<Purchase[]>('/purchases'),
   createPurchase: (input: PurchaseInput) => request<Purchase>('/purchases', { method: 'POST', body: json(input) }),
+  analyzeReceipt: (form: FormData) => request<ReceiptAnalysis>('/receipt-imports/analyze', { method: 'POST', body: form }, 180_000),
+  confirmReceiptImport: (input: ReceiptImportConfirmation) => request<Purchase>('/receipt-imports/confirm', { method: 'POST', body: json(input) }),
   expenses: () => request<Expense[]>('/expenses'),
   createExpense: (input: ExpenseInput) => request<Expense>('/expenses', { method: 'POST', body: json(input) }),
 
@@ -53,4 +56,5 @@ export const erpApi = {
   stockMovements: (productId?: number) => request<Movement[]>(`/stock-movements${productId ? `?productId=${productId}` : ''}`),
   materialMovements: (materialId?: number) => request<Movement[]>(`/material-movements${materialId ? `?materialId=${materialId}` : ''}`),
   basketMovements: (basketId?: number) => request<Movement[]>(`/basket-movements${basketId ? `?basketId=${basketId}` : ''}`),
+  clearHistory: (type: HistoryType) => request<void>(`/history/${type}`, { method: 'DELETE' }),
 };

@@ -8,12 +8,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.cestasdamel.erp.repository.BasketMovementRepository;
 import com.cestasdamel.erp.repository.BasketTemplateRepository;
 import com.cestasdamel.erp.repository.ExpenseRepository;
 import com.cestasdamel.erp.repository.FinancialTransactionRepository;
 import com.cestasdamel.erp.repository.ItemCategoryRepository;
+import com.cestasdamel.erp.repository.HistoryClearanceRepository;
 import com.cestasdamel.erp.repository.MaterialMovementRepository;
 import com.cestasdamel.erp.repository.MaterialRepository;
 import com.cestasdamel.erp.repository.ProductRepository;
@@ -54,9 +56,11 @@ class ApiRoutesIntegrationTests {
     @Autowired ProductRepository products;
     @Autowired MaterialRepository materials;
     @Autowired ItemCategoryRepository categories;
+    @Autowired HistoryClearanceRepository historyClearances;
 
     @BeforeEach
     void cleanDatabase() {
+        historyClearances.deleteAll();
         transactions.deleteAll();
         stockMovements.deleteAll();
         materialMovements.deleteAll();
@@ -78,7 +82,7 @@ class ApiRoutesIntegrationTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("UP"));
 
-        perform(post("/auth/register"), null, """
+        perform(post("/auth/setup"), null, """
             {"name":"Vinicius","username":"vinicius","password":"admin123"}
             """, 201);
         String token = json(perform(post("/auth/login"), null, """
@@ -109,7 +113,8 @@ class ApiRoutesIntegrationTests {
                 .with(request -> { request.setMethod("PUT"); return request; })
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.hasImage").value(true));
+            .andExpect(jsonPath("$.hasImage").value(true))
+            .andExpect(jsonPath("$.imageVersion").isNumber());
         mockMvc.perform(get("/products/" + productId + "/image")
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
@@ -147,6 +152,9 @@ class ApiRoutesIntegrationTests {
               {"type":"PRODUCT","referenceId":%d,"quantity":1}]}
             """, basketId, productId), 201)).get("id").asLong();
         perform(get("/sales"), token, null, 200);
+        mockMvc.perform(get("/financial-transactions").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].description").value("Venda #" + saleId + " - 1x Cesta Neon, 1x Chocolate 90g"));
 
         perform(post("/purchases"), token, String.format("""
             {"establishment":"Fornecedor","items":[{"type":"PRODUCT","referenceId":%d,"quantity":2,"unit":"UNIT","unitCost":4}]}
@@ -170,7 +178,10 @@ class ApiRoutesIntegrationTests {
         perform(get("/basket-movements?basketId=" + basketId), token, null, 200);
         perform(get("/financial-transactions"), token, null, 200);
         perform(get("/financial-transactions/balance"), token, null, 200);
-        perform(get("/dashboard"), token, null, 200);
+        mockMvc.perform(get("/dashboard").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.expensesToday").value(18.0))
+            .andExpect(jsonPath("$.purchasesToday").value(8.0));
         LocalDate today = LocalDate.now();
         perform(get("/reports/monthly?year=" + today.getYear() + "&month=" + today.getMonthValue()), token, null, 200);
         perform(get("/reports/cash-flow?period=DAILY&referenceDate=" + today), token, null, 200);
@@ -180,6 +191,24 @@ class ApiRoutesIntegrationTests {
         perform(post("/sales/" + saleId + "/cancel"), token, """
             {"reason":"Pedido cancelado pelo cliente"}
             """, 200);
+
+        var balanceBeforeHistoryClear = json(perform(get("/financial-transactions/balance"), token, null, 200)).get("balance").decimalValue();
+        var productQuantityBeforeHistoryClear = json(perform(get("/products"), token, null, 200)).get(0).get("quantity").decimalValue();
+        for (String history : new String[]{"SALES", "PURCHASES", "EXPENSES", "PRODUCTIONS", "FINANCE", "STOCK_MOVEMENTS", "MATERIAL_MOVEMENTS", "BASKET_MOVEMENTS"}) {
+            perform(delete("/history/" + history), token, null, 204);
+        }
+        mockMvc.perform(get("/sales").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/purchases").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/expenses").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/productions").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/financial-transactions").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/stock-movements").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/material-movements").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/basket-movements").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/dashboard").header("Authorization", "Bearer " + token)).andExpect(jsonPath("$.recentTransactions.length()").value(0));
+        assertEquals(balanceBeforeHistoryClear, json(perform(get("/financial-transactions/balance"), token, null, 200)).get("balance").decimalValue());
+        assertEquals(productQuantityBeforeHistoryClear, json(perform(get("/products"), token, null, 200)).get(0).get("quantity").decimalValue());
+
         perform(delete("/products/" + productId + "/image"), token, null, 204);
         perform(delete("/baskets/" + basketId), token, null, 204);
         perform(delete("/products/" + productId), token, null, 204);

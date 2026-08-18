@@ -27,6 +27,11 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @PostMapping("/setup")
+    ResponseEntity<UserView> setup(@Valid @RequestBody Register request) {
+        return ResponseEntity.status(201).body(authService.setupFirstUser(request));
+    }
+
     @PostMapping("/register")
     ResponseEntity<UserView> register(@Valid @RequestBody Register request, Authentication authentication) {
         return ResponseEntity.status(201).body(authService.register(request, authentication));

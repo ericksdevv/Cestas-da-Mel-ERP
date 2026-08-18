@@ -46,6 +46,7 @@ export interface Product {
   contentQuantity?: number;
   contentUnit?: UnitOfMeasure;
   hasImage: boolean;
+  imageVersion?: number;
 }
 
 export interface Material {
@@ -114,6 +115,46 @@ export interface Purchase {
   total: number;
   observations?: string;
   items: OperationItem[];
+  receiptAccessKey?: string;
+}
+
+export interface ReceiptItemSuggestion {
+  index: number;
+  name: string;
+  barcode?: string;
+  quantity: number;
+  inventoryUnit: UnitOfMeasure;
+  contentQuantity?: number;
+  contentUnit?: UnitOfMeasure;
+  unitCost: number;
+  subtotal: number;
+  suggestedType: 'PRODUCT' | 'MATERIAL';
+  categoryName: string;
+  matchedReferenceId?: number;
+  matchedName?: string;
+  confidence: number;
+}
+
+export interface ReceiptAnalysis {
+  establishment: string;
+  cnpj?: string;
+  accessKey?: string;
+  purchasedAt: string;
+  total: number;
+  items: ReceiptItemSuggestion[];
+  warnings: string[];
+}
+
+export interface ReceiptImportConfirmation {
+  establishment: string;
+  purchasedAt?: string;
+  observations?: string;
+  receiptAccessKey?: string;
+  items: Array<{
+    type: 'PRODUCT' | 'MATERIAL'; referenceId?: number; name: string; categoryName?: string;
+    quantity: number; unit: UnitOfMeasure; contentQuantity?: number; contentUnit?: UnitOfMeasure;
+    unitCost: number; salePrice?: number;
+  }>;
 }
 
 export interface Expense {
@@ -237,6 +278,7 @@ export interface PurchaseInput {
   purchasedAt?: string;
   observations?: string;
   items: { type: 'PRODUCT' | 'MATERIAL'; referenceId: number; quantity: number; unit?: UnitOfMeasure; unitCost: number }[];
+  receiptAccessKey?: string;
 }
 export interface ProductionInput { basketId: number; quantity: number; producedAt?: string; notes?: string }
 

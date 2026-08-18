@@ -14,7 +14,7 @@ public final class Requests { private Requests(){}
  public record SaleLine(@NotNull ItemType type,@NotNull Long referenceId,@NotNull @Positive BigDecimal quantity,@PositiveOrZero BigDecimal unitPrice){}
  public record SaleInput(Instant soldAt,@NotNull PaymentMethod paymentMethod,String observations,@NotEmpty List<@Valid SaleLine> items){}
  public record PurchaseLine(@NotNull ItemType type,@NotNull Long referenceId,@NotNull @Positive BigDecimal quantity,UnitOfMeasure unit,@NotNull @PositiveOrZero BigDecimal unitCost){}
- public record PurchaseInput(@NotBlank String establishment,Instant purchasedAt,String observations,@NotEmpty List<@Valid PurchaseLine> items){}
+ public record PurchaseInput(@NotBlank String establishment,Instant purchasedAt,String observations,@NotEmpty List<@Valid PurchaseLine> items,String receiptAccessKey){public PurchaseInput(String establishment,Instant purchasedAt,String observations,List<PurchaseLine> items){this(establishment,purchasedAt,observations,items,null);}}
  public record ExpenseInput(@NotBlank String description,@NotBlank String category,Instant occurredAt,@NotNull @Positive BigDecimal amount,String observations){}
  public record ManualTransaction(@NotNull TransactionType type,@NotBlank String description,@NotNull @Positive BigDecimal amount,Instant occurredAt){}
 }

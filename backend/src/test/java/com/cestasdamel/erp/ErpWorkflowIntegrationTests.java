@@ -115,7 +115,8 @@ class ErpWorkflowIntegrationTests {
             List.of(
                 new PurchaseLine(ItemType.PRODUCT, product.id(), new BigDecimal("10"), null, new BigDecimal("4")),
                 new PurchaseLine(ItemType.MATERIAL, material.id(), new BigDecimal("5"), null, new BigDecimal("3"))
-            )
+            ),
+            null
         ));
         assertThat(purchase.total()).isEqualByComparingTo("55.00");
 

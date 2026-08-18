@@ -73,11 +73,11 @@ class PublicApiIntegrationTests {
                 .content("""
                     {"name":"Outro","username":"outro","password":"senha-segura"}
                     """))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
     }
 
     private String login() throws Exception {
-        mockMvc.perform(post("/auth/register")
+        mockMvc.perform(post("/auth/setup")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"name":"Vinicius","username":"vinicius","password":"admin123"}

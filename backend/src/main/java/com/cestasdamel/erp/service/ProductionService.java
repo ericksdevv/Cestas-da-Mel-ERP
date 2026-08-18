@@ -1,7 +1,7 @@
 package com.cestasdamel.erp.service;
 import com.cestasdamel.erp.dto.Requests.ProductionInput; import com.cestasdamel.erp.dto.Responses.ProductionView; import com.cestasdamel.erp.exception.BusinessException; import com.cestasdamel.erp.model.*; import com.cestasdamel.erp.repository.ProductionOrderRepository; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional; import java.math.*; import java.time.Instant; import java.util.*;
 @Service @RequiredArgsConstructor public class ProductionService {
- private final ProductionOrderRepository orders; private final InventoryService inventory;
+ private final ProductionOrderRepository orders; private final InventoryService inventory; private final HistoryService history;
  @Transactional public ProductionView produce(ProductionInput r,String responsible){
   if(r.quantity().stripTrailingZeros().scale()>0)throw new BusinessException("Quantidade produzida deve ser inteira");
   BasketTemplate basket=inventory.lockBasket(r.basketId()); if(!basket.isActive())throw new BusinessException("Cesta inativa: "+basket.getName()); if(basket.getProducts().isEmpty()&&basket.getMaterials().isEmpty())throw new BusinessException("A cesta não possui componentes");
@@ -13,5 +13,5 @@ import com.cestasdamel.erp.dto.Requests.ProductionInput; import com.cestasdamel.
   inventory.add(basket,r.quantity(),Enums.MovementReason.BASKET_PRODUCTION,order.getId(),notes,at); return ViewMapper.production(order);
  }
  private BigDecimal calculateCost(BasketTemplate b){BigDecimal value=BigDecimal.ZERO;for(BasketProduct c:b.getProducts())value=value.add(c.getProduct().getPurchasePrice().multiply(c.getQuantity()));for(BasketMaterial c:b.getMaterials())value=value.add(c.getMaterial().getUnitCost().multiply(c.getQuantity()));return value.setScale(2,RoundingMode.HALF_UP);}
- @Transactional(readOnly=true) public List<ProductionView> list(){return orders.findAllByOrderByProducedAtDesc().stream().map(ViewMapper::production).toList();}
+ @Transactional(readOnly=true) public List<ProductionView> list(){Instant cutoff=history.cutoff(Enums.HistoryType.PRODUCTIONS);return orders.findAllByOrderByProducedAtDesc().stream().filter(item->history.visibleAfter(item,cutoff)).map(ViewMapper::production).toList();}
 }

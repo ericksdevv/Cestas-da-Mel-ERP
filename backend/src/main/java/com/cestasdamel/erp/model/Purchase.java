@@ -6,5 +6,6 @@ public class Purchase extends BaseEntity {
  @Column(name="purchased_at",nullable=false) private Instant purchasedAt;
  @Column(nullable=false,precision=15,scale=2) private BigDecimal total;
  private String observations;
+ @Column(name="receipt_access_key",length=60,unique=true) private String receiptAccessKey;
  @OneToMany(mappedBy="purchase",cascade=CascadeType.ALL,orphanRemoval=true) private List<PurchaseItem> items=new ArrayList<>();
 }

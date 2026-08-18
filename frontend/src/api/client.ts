@@ -25,20 +25,29 @@ export function authenticatedImageSource(path: string) {
   };
 }
 
+export async function fetchAuthenticatedImage(path: string, signal?: AbortSignal) {
+  const headers = new Headers();
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  const response = await fetch(`${API_URL}${path}`, { headers, signal });
+  if (response.status === 401 && accessToken) unauthorizedHandler?.();
+  if (!response.ok) throw new Error('Não foi possível carregar a foto do produto.');
+  return response.blob();
+}
+
 export class RequestError extends Error {
   constructor(public readonly status: number, public readonly details?: ApiError) {
     super(details?.message ?? `Não foi possível concluir a operação (${status}).`);
   }
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const headers = new Headers(init.headers);
   const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
   if (init.body && !isFormData && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, { ...init, headers, signal: controller.signal });

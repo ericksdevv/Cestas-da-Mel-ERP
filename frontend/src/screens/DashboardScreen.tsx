@@ -6,15 +6,17 @@ import { erpApi } from '../api/erp';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorNotice, Header, ListRow, Loading, PrimaryButton, Screen, SectionTitle, Tabs, uiStyles } from '../components/ui';
 import { colors, themedStyles } from '../theme/theme';
-import { dateTime, errorMessage, money } from '../utils/format';
+import { dateTime, errorMessage, money, paymentLabels, transactionDescription } from '../utils/format';
 
 export function DashboardScreen({ onNewSale }: { onNewSale(): void }) {
   const { username } = useAuth();
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
   const dashboard = useQuery({ queryKey: ['dashboard'], queryFn: erpApi.dashboard, refetchInterval: 60_000, refetchOnWindowFocus: true });
   const alerts = useQuery({ queryKey: ['alerts'], queryFn: erpApi.alerts, refetchInterval: 60_000, refetchOnWindowFocus: true });
-  const refreshing = dashboard.isFetching || alerts.isFetching;
-  const refresh = () => { void dashboard.refetch(); void alerts.refetch(); };
+  const sales = useQuery({ queryKey: ['sales'], queryFn: erpApi.sales, refetchInterval: 60_000, refetchOnWindowFocus: true });
+  const products = useQuery({ queryKey: ['products'], queryFn: erpApi.products, refetchInterval: 60_000, refetchOnWindowFocus: true });
+  const refreshing = dashboard.isFetching || alerts.isFetching || sales.isFetching || products.isFetching;
+  const refresh = () => { void dashboard.refetch(); void alerts.refetch(); void sales.refetch(); void products.refetch(); };
 
   if (dashboard.isLoading) return <Loading />;
   if (dashboard.error) return <Screen><ErrorNotice message={errorMessage(dashboard.error)} onRetry={refresh} /></Screen>;
@@ -30,13 +32,13 @@ export function DashboardScreen({ onNewSale }: { onNewSale(): void }) {
       <Header title={`Olá, ${username ?? 'administrador'}`} subtitle={new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(new Date())} />
       <View style={styles.balance}><Text style={styles.balanceLabel}>Caixa atual</Text><Text style={styles.balanceValue}>{money(data.cashBalance)}</Text><View style={styles.balanceBottom}><Text style={styles.balanceSmall}>{money(data.salesToday)} em vendas hoje</Text><Text style={styles.balanceSmall}>{data.salesCountToday} vendas</Text></View></View>
       <Tabs<'today' | 'week' | 'month'> values={['today', 'week', 'month']} value={period} labels={{ today: 'Hoje', week: 'Semana', month: 'Mês' }} onChange={setPeriod} />
-      <View style={styles.periodSummary}><PeriodValue label="Vendas" value={money(salesValue)} positive /><PeriodValue label="Gastos" value={money(expensesValue)} /><PeriodValue label="Compras" value={money(purchasesValue)} /><PeriodValue label="Nº de vendas" value={String(countValue)} positive /></View>
+      <View style={styles.periodSummary}><PeriodValue label="Vendas" value={money(salesValue)} positive /><PeriodValue label="Gastos totais" value={money(expensesValue)} /><PeriodValue label="Compras" value={money(purchasesValue)} /><PeriodValue label="Nº de vendas" value={String(countValue)} positive /></View>
       <PrimaryButton title="Registrar nova venda" icon="add" onPress={onNewSale} />
 
       <SectionTitle>Atenção no estoque{alertCount ? ` · ${alertCount}` : ''}</SectionTitle>
       <View style={uiStyles.panel}>
         {!alerts.data?.total ? <Text style={styles.okText}>Tudo certo: nenhum item com estoque baixo.</Text> : <>
-          {alerts.data.products.slice(0, 3).map((item) => <ListRow key={`p-${item.id}`} icon="alert-circle-outline" title={item.name} subtitle={`Produto · ${item.quantity} ${item.unit}`} value={item.status === 'OUT_OF_STOCK' ? 'Zerado' : 'Baixo'} tone="danger" />)}
+          {alerts.data.products.slice(0, 3).map((item) => <ListRow key={`p-${item.id}`} icon="alert-circle-outline" image={{ productId: item.id, hasImage: item.hasImage, imageVersion: item.imageVersion }} title={item.name} subtitle={`Produto · ${item.quantity} ${item.unit}`} value={item.status === 'OUT_OF_STOCK' ? 'Zerado' : 'Baixo'} tone="danger" />)}
           {alerts.data.materials.slice(0, 3).map((item) => <ListRow key={`m-${item.id}`} icon="warning-outline" title={item.name} subtitle={`Material · ${item.quantity} ${item.unit}`} value={item.status === 'OUT_OF_STOCK' ? 'Zerado' : 'Baixo'} tone="danger" />)}
           {alerts.data.baskets.slice(0, 3).map((item) => <ListRow key={`b-${item.id}`} icon="gift-outline" title={item.name} subtitle={`Cesta pronta · ${item.quantity} un.`} value={item.status === 'OUT_OF_STOCK' ? 'Zerada' : 'Baixa'} tone="danger" />)}
         </>}
@@ -44,13 +46,14 @@ export function DashboardScreen({ onNewSale }: { onNewSale(): void }) {
 
       <SectionTitle>Movimentações recentes</SectionTitle>
       <View style={uiStyles.panel}>
-        {!data.recentTransactions.length ? <Text style={styles.emptyText}>Nenhuma movimentação registrada.</Text> : data.recentTransactions.map((item) => <ListRow key={item.id} icon={item.type === 'INCOME' ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline'} title={item.description} subtitle={dateTime(item.occurredAt)} value={`${item.type === 'INCOME' ? '+' : '−'} ${money(item.amount)}`} tone={item.type === 'INCOME' ? 'positive' : 'danger'} />)}
+        {!data.recentTransactions.length ? <Text style={styles.emptyText}>Nenhuma movimentação registrada.</Text> : data.recentTransactions.map((item) => { const sale = item.source === 'SALE' ? sales.data?.find((entry) => entry.id === item.referenceId) : undefined; const soldProduct = sale?.items.find((entry) => entry.type === 'PRODUCT'); const product = soldProduct ? products.data?.find((entry) => entry.id === soldProduct.referenceId) : undefined; return <ListRow key={item.id} icon={item.type === 'INCOME' ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline'} image={product ? { productId: product.id, hasImage: product.hasImage, imageVersion: product.imageVersion } : undefined} title={transactionDescription(item, sales.data)} subtitle={`${sale ? paymentLabels[sale.paymentMethod] : movementSource(item.source)} · ${dateTime(item.occurredAt)}`} value={`${item.type === 'INCOME' ? '+' : '−'} ${money(item.amount)}`} tone={item.type === 'INCOME' ? 'positive' : 'danger'} />; })}
       </View>
     </Screen>
   );
 }
 
 function PeriodValue({ label, value, positive }: { label: string; value: string; positive?: boolean }) { return <View style={styles.periodValue}><Text style={styles.periodLabel}>{label}</Text><Text style={[styles.periodNumber, { color: positive ? colors.green : colors.ink }]}>{value}</Text></View>; }
+const movementSource = (source: string) => ({ SALE: 'Venda', PURCHASE: 'Compra', EXPENSE: 'Gasto', MANUAL: 'Ajuste manual', REVERSAL: 'Estorno' }[source] ?? source);
 
 const styles = themedStyles((colors) => ({
   balance: { padding: 20, borderRadius: 18, backgroundColor: colors.cocoa },

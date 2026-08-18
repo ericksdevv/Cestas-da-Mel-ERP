@@ -1,4 +1,4 @@
-import { UnitOfMeasure } from '../api/types';
+import { FinancialTransaction, Sale, UnitOfMeasure } from '../api/types';
 
 export const money = (value = 0) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 export const number = (value = 0) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(value);
@@ -13,5 +13,15 @@ export const unitLabels: Record<UnitOfMeasure, string> = {
 export const paymentLabels = {
   CASH: 'Dinheiro', PIX: 'Pix', CREDIT_CARD: 'Crédito', DEBIT_CARD: 'Débito', BANK_TRANSFER: 'Transferência', OTHER: 'Outro',
 } as const;
+
+export const saleItemsSummary = (sale: Sale) => sale.items
+  .map((item) => `${number(item.quantity)}× ${item.name}`)
+  .join(', ');
+
+export const transactionDescription = (transaction: FinancialTransaction, sales: Sale[] = []) => {
+  if (transaction.source !== 'SALE' || !transaction.referenceId) return transaction.description;
+  const sale = sales.find((item) => item.id === transaction.referenceId);
+  return sale ? `Venda #${sale.id} · ${saleItemsSummary(sale)}` : transaction.description;
+};
 
 export const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Ocorreu um erro inesperado.';

@@ -10,5 +10,6 @@ public interface ItemCategoryRepository extends JpaRepository<ItemCategory, Long
     List<ItemCategory> findAllByDeletedAtIsNullOrderByTypeAscNameAsc();
     List<ItemCategory> findAllByTypeAndDeletedAtIsNullOrderByNameAsc(CategoryType type);
     Optional<ItemCategory> findByIdAndDeletedAtIsNull(Long id);
+    Optional<ItemCategory> findFirstByTypeAndNameIgnoreCaseAndDeletedAtIsNull(CategoryType type, String name);
     boolean existsByTypeAndNameIgnoreCaseAndDeletedAtIsNull(CategoryType type, String name);
 }

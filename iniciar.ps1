@@ -4,6 +4,19 @@ $backendPath = Join-Path $projectRoot 'backend'
 $frontendPath = Join-Path $projectRoot 'frontend'
 $environmentFile = Join-Path $backendPath '.env.local'
 
+function Test-DockerReady {
+    param([Parameter(Mandatory = $true)][string]$DockerExecutable)
+
+    $previousErrorPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'SilentlyContinue'
+        & $DockerExecutable info *> $null
+        return $LASTEXITCODE -eq 0
+    } finally {
+        $ErrorActionPreference = $previousErrorPreference
+    }
+}
+
 $Host.UI.RawUI.WindowTitle = 'Cestas da Mel - Servidores'
 Write-Host ''
 Write-Host '  Cestas da Mel' -ForegroundColor Yellow
@@ -24,6 +37,10 @@ foreach ($line in Get-Content -LiteralPath $environmentFile) {
     [Environment]::SetEnvironmentVariable($name, $value, 'Process')
 }
 
+if ([string]::IsNullOrWhiteSpace($env:OPENROUTER_API_KEY)) {
+    Write-Host '  Leitura de notas com IA desativada: configure OPENROUTER_API_KEY em backend\.env.local.' -ForegroundColor Yellow
+}
+
 $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
 if (-not $dockerCommand) {
     $dockerExecutable = Join-Path $env:LOCALAPPDATA 'Programs\DockerDesktop\resources\bin\docker.exe'
@@ -34,10 +51,14 @@ if (-not $dockerCommand) {
     $dockerExecutable = $dockerCommand.Source
 }
 
-& $dockerExecutable info *> $null
-if ($LASTEXITCODE -ne 0) {
-    $dockerDesktop = Join-Path $env:LOCALAPPDATA 'Programs\DockerDesktop\Docker Desktop.exe'
-    if (-not (Test-Path -LiteralPath $dockerDesktop)) {
+if (-not (Test-DockerReady -DockerExecutable $dockerExecutable)) {
+    $dockerCandidates = @(
+        (Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Docker\Docker Desktop.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\DockerDesktop\Docker Desktop.exe')
+    )
+    $dockerDesktop = $dockerCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if (-not $dockerDesktop) {
         throw 'Abra o Docker Desktop e execute este comando novamente.'
     }
     Write-Host '  Abrindo o Docker Desktop...' -ForegroundColor DarkCyan
@@ -45,8 +66,7 @@ if ($LASTEXITCODE -ne 0) {
     $dockerReady = $false
     for ($attempt = 0; $attempt -lt 45; $attempt++) {
         Start-Sleep -Seconds 2
-        & $dockerExecutable info *> $null
-        if ($LASTEXITCODE -eq 0) { $dockerReady = $true; break }
+        if (Test-DockerReady -DockerExecutable $dockerExecutable) { $dockerReady = $true; break }
     }
     if (-not $dockerReady) { throw 'O Docker Desktop não ficou pronto a tempo.' }
 }
@@ -54,7 +74,7 @@ if ($LASTEXITCODE -ne 0) {
 Push-Location $backendPath
 try {
     Write-Host '  Iniciando banco de dados e sistema...' -ForegroundColor DarkCyan
-    & $dockerExecutable compose up -d --build
+    & $dockerExecutable compose --env-file $environmentFile up -d --build --force-recreate
     if ($LASTEXITCODE -ne 0) { throw 'Não foi possível iniciar o banco e a API.' }
 } finally {
     Pop-Location
@@ -80,10 +100,17 @@ if (-not $apiReady) {
 Push-Location $frontendPath
 try {
     $expoCommand = Join-Path $frontendPath 'node_modules\.bin\expo.cmd'
+    $imagePickerPackage = Join-Path $frontendPath 'node_modules\expo-image-picker\package.json'
     if (-not (Test-Path -LiteralPath $expoCommand)) {
         Write-Host '  Instalando os componentes do aplicativo...' -ForegroundColor DarkCyan
         & npm.cmd ci
         if ($LASTEXITCODE -ne 0) { throw 'Não foi possível preparar o aplicativo.' }
+    } elseif (-not (Test-Path -LiteralPath $imagePickerPackage)) {
+        Write-Host '  Instalando o componente da câmera...' -ForegroundColor DarkCyan
+        & npm.cmd install
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Não foi possível instalar o componente da câmera. Verifique a internet e tente novamente.'
+        }
     }
 
     Write-Host ''

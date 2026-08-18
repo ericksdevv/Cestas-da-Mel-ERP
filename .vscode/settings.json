@@ -1,0 +1,4 @@
+{
+    "java.compile.nullAnalysis.mode": "disabled",
+    "boot-java.validation.java.version-validation": "OFF"
+}
